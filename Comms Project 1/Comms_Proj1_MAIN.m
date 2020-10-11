@@ -1,0 +1,272 @@
+% Philip Blumin
+% Comms Project 1
+%without noise
+
+%% Clear Stage
+clc;
+clear;
+close all;
+
+%% Scaling Message
+%WARNING WHEN LISTENING TO MP3 FILE PLZ LOWER VOLUME FOR SAFTY PURPOSES
+%ALL MAGNITUDE PLOTS HAVE Y AXIS IN LOG SCALE USING SEMILOGYY
+
+[mt, fs] = audioread('Carl_Smith_Comms.mp3'); 
+mt = mt(:, 1)';
+
+N = length(mt);
+T = N/fs;
+N2 = N * 40; %upsampling N
+fs2 = fs * 40; %upsampling fs
+t = linspace(0,T,N);
+t2 = linspace(0,T,N2); %upsampled t
+max = max(abs(mt));
+wd = linspace(-pi,pi,N); %wd
+wd2 = linspace(-pi,pi,N2); %wd
+f = (wd * fs)/(2 * pi);
+f2 = (wd2 * fs2)/(2 * pi);
+Ac = 1;
+
+mt_scaled = mt ./ max;
+
+mt_upscaled = interp1(t, mt_scaled, t2);
+
+fc = 600E3; %carrier freq. I decided on 600khz after googling carrier freqs used for AM
+
+wc = 2 * pi * fc;
+
+f_cutoff= fs/2;
+
+figure;
+plot(t2,mt_upscaled);
+xlabel('t (sec)');
+ylabel('Magnitude');
+title('Original Signal');
+
+power = (rms(mt_upscaled).^2);
+
+disp("Signal Power at the output of Original Signal: " + power);
+
+%as seen the message is now scaled so that the maximum abs is 1
+
+
+%% SSB AM
+
+%modulate
+[u_ussb] = SSB_AM_modulate(mt,max,Ac,f2,fs,wc);
+
+U_USSB = fft(u_ussb);
+
+U_USSB = fftshift(U_USSB/fs2);
+
+figure;
+subplot(2,1,1);
+plot(t2,u_ussb);
+title('upper SSB modulated in time domain');
+ylabel('Magnitude');
+xlabel('t (sec)');
+
+subplot(2,1,2);
+semilogy(f2, abs(U_USSB));
+title('upper SSB modulated in frequency domain');
+ylabel('Magnitude (log)');
+xlabel('w (Hz)');
+
+sgtitle('SSB modulated');
+%demod
+[demodSSB] = SSB_AM_demod(u_ussb,f_cutoff,wc,t2,fs2,Ac);
+
+DemodSSB = fft(demodSSB);
+
+DemodSSB = fftshift(DemodSSB/fs2);
+
+powerSSB = (rms(demodSSB).^2);
+
+disp("Signal Power at the output of SSB demod: " + powerSSB);
+
+figure;
+subplot(2,1,1);
+plot(t,demodSSB);
+title('upper SSB Demodulated in time domain');
+ylabel('Magnitude');
+xlabel('t (sec)');
+
+subplot(2,1,2);
+semilogy(f, abs(DemodSSB));
+title('upper SSB Demodulated in frequency domain');
+ylabel('Magnitude (log)');
+xlabel('w (Hz)');
+
+sgtitle('SSB demodulated');
+
+%soundsc(demodSSB, fs);
+
+%% Convenional AM
+
+%modulate
+[conv] = convAM_modulate(mt,max,Ac,fs,wc);
+
+CONV = fft(conv);
+
+CONV = fftshift(CONV/fs2);
+
+figure;
+subplot(2,1,1);
+plot(t2,conv);
+title('conventional AM modulated in time domain');
+ylabel('Magnitude');
+xlabel('t (sec)');
+
+subplot(2,1,2);
+semilogy(f2, abs(CONV));
+title('conventional AM modulated in frequency domain');
+ylabel('Magnitude (log)');
+xlabel('w (Hz)');
+
+sgtitle('convenional AM modulated');
+
+%demod
+[demodconv] = convAM_demod(conv,f_cutoff,fs2);
+
+Demodconv = fft(demodconv);
+
+Demodconv = fftshift(Demodconv/fs2);
+
+powerconv = (rms(demodconv).^2);
+
+disp("Signal Power at the output of Conv demod: " + powerconv);
+
+figure;
+subplot(2,1,1);
+plot(t,demodconv);
+title('conventional AM demodulated in time domain');
+ylabel('Magnitude');
+xlabel('t (sec)');
+
+subplot(2,1,2);
+semilogy(f, abs(Demodconv));
+title('conventional AM demodulated in frequency domain');
+ylabel('Magnitude (log)');
+xlabel('w (Hz)');
+
+sgtitle('convenional AM demodulated');
+
+%sound(demodconv, fs);
+
+%% PM
+
+%modulate
+
+[pm] = PM_mod(mt,Ac, wc, fs, 1);
+
+PM = fft(pm);
+
+PM = fftshift(PM/fs2);
+
+figure;
+subplot(2,1,1);
+plot(t2,pm);
+title('PM modulated in time domain');
+ylabel('Magnitude');
+xlabel('t (sec)');
+
+subplot(2,1,2);
+semilogy(f2, abs(PM));
+title('PM modulated in frequency domain');
+ylabel('Magnitude (log)');
+xlabel('w (Hz)');
+
+sgtitle('PM modulated');
+
+%2 deltas with just regular plot in freq domain
+
+%demodulation
+
+[demodpm] = PM_demod(Ac, pm,f_cutoff,wc,t2,fs2);
+
+demodPM = fft(demodpm);
+
+demodPM = fftshift(demodPM/fs2);
+
+powerpm = (rms(demodpm).^2);
+
+disp("Signal Power at the output of PM demod: " + powerpm);
+
+figure;
+subplot(2,1,1);
+plot(t,demodpm);
+title('PM demodulated in time domain');
+ylabel('Magnitude');
+xlabel('t (sec)');
+
+subplot(2,1,2);
+semilogy(f, abs(demodPM));
+title('PM demodulated in frequency domain');
+ylabel('Magnitude (log)');
+xlabel('w (Hz)');
+
+sgtitle('PM demodulated');
+
+%soundsc(demodpm, fs);
+
+%% FM
+
+%modulate
+wc2 = 2 * pi * 1000E3;
+[fm] = FM_mod(mt,Ac, wc2, fs, 100000);
+
+FM = fft(fm);
+
+FM = fftshift(FM/fs2);
+
+figure;
+subplot(2,1,1);
+plot(t2,fm);
+title('FM modulated in time domain');
+ylabel('Magnitude');
+xlabel('t (sec)');
+
+subplot(2,1,2);
+semilogy(f2, abs(FM));
+title('FM modulated in frequency domain');
+ylabel('Magnitude (log)');
+xlabel('w (Hz)');
+
+sgtitle('FM modulated');
+
+%demod
+
+w = f2 * (2 * pi);
+
+[demodfm] = FM_demod(fm, fs2, f_cutoff, w);
+
+demodFM = fft(demodfm);
+
+demodFM = fftshift(demodFM/fs2);
+
+powerfm = (rms(demodfm).^2);
+
+disp("Signal Power at the output of FM demod: " + powerfm);
+
+figure;
+subplot(2,1,1);
+plot(t,demodfm);
+title('FM demodulated in time domain');
+ylabel('Magnitude');
+xlabel('t (sec)');
+
+subplot(2,1,2);
+semilogy(f, abs(demodFM));
+title('FM demodulated in frequency domain');
+ylabel('Magnitude (log)');
+xlabel('w (Hz)');
+
+sgtitle('FM demodulated');
+
+%soundsc(demodfm, fs);
+
+
+
+
+
+
